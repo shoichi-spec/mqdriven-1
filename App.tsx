@@ -599,7 +599,13 @@ const App: React.FC = () => {
         };
 
         const customerSuggestions: PredictiveSuggestion[] = [];
-        for (const customer of customers) {
+        const suggestionCustomers =
+            currentPage === 'sales_customers'
+                ? customers.filter(
+                    customer => customer.is_customer_chart !== true
+                )
+                : customers;
+        for (const customer of suggestionCustomers) {
             if (customerSuggestions.length >= 5) break;
             if (!customer.customerName) continue;
             const isMatch =
