@@ -667,6 +667,8 @@ const ExpenseReimbursementForm: React.FC<ExpenseReimbursementFormProps> = (props
 
         setIsOcrLoading(true);
         setError('');
+        setPinnedTotalGross(null);
+
         const file = files[0];
         let uploadedAttachment: ExpenseAttachment | null = null;
 
@@ -696,37 +698,37 @@ const ExpenseReimbursementForm: React.FC<ExpenseReimbursementFormProps> = (props
                 updateField('totalNet', ocrData.subtotalAmount);
                 updateField('taxAmount', ocrData.taxAmount);
 
-                // Detect if this is likely a tax-inclusive invoice
+                // OCRで取得した合計金額
                 const totalAmount = Number(ocrData.totalAmount) || 0;
                 const subtotalAmount = Number(ocrData.subtotalAmount) || 0;
-                const taxAmount = Number(ocrData.taxAmount) || 0;
 
-                // If we have both total and tax, and subtotal is missing or close to total-tax, 
-                // it's likely a tax-inclusive invoice
+                // OCR明細の合計
                 const lineItemSum = Array.isArray(ocrData.lineItems)
-    ? ocrData.lineItems.reduce(
-        (sum, item) => sum + (Number(item.amountExclTax) || 0),
-        0
-    )
-    : 0;
+                    ? ocrData.lineItems.reduce(
+                        (sum, item) => sum + (Number(item.amountExclTax) || 0),
+                        0
+                    )
+                    : 0;
 
-const lineMatchesSubtotal =
-    lineItemSum > 0 &&
-    subtotalAmount > 0 &&
-    Math.abs(lineItemSum - subtotalAmount) < 100;
+                // 明細合計が税抜小計と一致するか
+                const lineMatchesSubtotal =
+                    lineItemSum > 0 &&
+                    subtotalAmount > 0 &&
+                    Math.abs(lineItemSum - subtotalAmount) < 100;
 
-const lineMatchesGross =
-    lineItemSum > 0 &&
-    totalAmount > 0 &&
-    Math.abs(lineItemSum - totalAmount) < 100;
+                // 明細合計が税込合計と一致するか
+                const lineMatchesGross =
+                    lineItemSum > 0 &&
+                    totalAmount > 0 &&
+                    Math.abs(lineItemSum - totalAmount) < 100;
 
-// isTaxInclusive は「請求書総額が税込か」ではなく
-// 「明細金額が税込で記載されているか」を表す
-const isInclusiveLikely =
-    lineMatchesGross &&
-    !lineMatchesSubtotal;
-
-updateField('isTaxInclusive', isInclusiveLikely);
+                // isTaxInclusive は「請求書全体が税込表記か」ではなく、
+                // 「明細金額そのものが税込金額か」を表す。
+                // 明細合計が税抜小計と一致する場合は税抜、
+                // 税込合計と一致し税抜小計とは一致しない場合だけ税込と判定する。
+                const isInclusiveLikely =
+                    lineMatchesGross &&
+                    !lineMatchesSubtotal;
 
                 updateField('isTaxInclusive', isInclusiveLikely);
 
