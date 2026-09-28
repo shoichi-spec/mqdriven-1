@@ -77,7 +77,7 @@ interface ExpenseInvoiceDraft {
     lines: ExpenseLine[];
     ocrExtractedFields: Set<string>;
     sourceFile?: { name: string; type: string; url: string };
-    isTaxInclusive?: boolean; // New field to track tax selection
+    isTaxInclusive?: boolean; // true: 明細金額は税込 / false: 明細金額は税抜
 }
 
 interface ExpenseAttachment {
@@ -233,11 +233,6 @@ const toNumberValue = (value: any): number => {
     return Number.isFinite(numeric) ? numeric : 0;
 };
 
-const isCloseTo = (value: number, target: number): boolean => {
-    const tolerance = Math.max(1, Math.round(Math.abs(target) * 0.01));
-    return Math.abs(value - target) <= tolerance;
-};
-
 const computeLineTotals = (invoice: ExpenseInvoiceDraft): ComputedTotals => {
     const lines = Array.isArray(invoice.lines) ? invoice.lines : [];
     const lineSum = lines.reduce((sum, line) => sum + toNumberValue(line.amountExclTax), 0);
@@ -301,8 +296,8 @@ const computeLineTotals = (invoice: ExpenseInvoiceDraft): ComputedTotals => {
     return { net, tax, gross };
 }
 
-    // Use user's tax selection if explicitly set, otherwise fall back to auto-detection
-    const shouldTreatAsInclusive = isTaxInclusive || (hasHeaderTotals && totalGross > 0 && isCloseTo(lineSum, totalGross) && !isCloseTo(lineSum, totalNet));
+    // 明細金額の税区分は、OCRまたはユーザーが選択した値をそのまま採用する
+    const shouldTreatAsInclusive = isTaxInclusive;
 
     if (shouldTreatAsInclusive) {
         const totals = lines.reduce(
@@ -556,6 +551,10 @@ const ExpenseReimbursementForm: React.FC<ExpenseReimbursementFormProps> = (props
             }
             const updated = { ...prev, [field]: value };
 
+            if (field === 'isTaxInclusive') {
+                return syncInvoiceTotals(updated);
+            }
+
             return updated;
         });
     };
@@ -655,6 +654,7 @@ const ExpenseReimbursementForm: React.FC<ExpenseReimbursementFormProps> = (props
             sourceFile: undefined,
         }));
         setDocumentAttachment(null);
+        setPinnedTotalGross(null);
         addToast?.('ファイルを削除しました。', 'info');
     };
 
@@ -667,6 +667,8 @@ const ExpenseReimbursementForm: React.FC<ExpenseReimbursementFormProps> = (props
 
         setIsOcrLoading(true);
         setError('');
+        setPinnedTotalGross(null);
+
         const file = files[0];
         let uploadedAttachment: ExpenseAttachment | null = null;
 
@@ -696,17 +698,38 @@ const ExpenseReimbursementForm: React.FC<ExpenseReimbursementFormProps> = (props
                 updateField('totalNet', ocrData.subtotalAmount);
                 updateField('taxAmount', ocrData.taxAmount);
 
-                // Detect if this is likely a tax-inclusive invoice
+                // OCR結果から「明細金額が税抜か税込か」を判定する
                 const totalAmount = Number(ocrData.totalAmount) || 0;
                 const subtotalAmount = Number(ocrData.subtotalAmount) || 0;
-                const taxAmount = Number(ocrData.taxAmount) || 0;
 
-                // If we have both total and tax, and subtotal is missing or close to total-tax, 
-                // it's likely a tax-inclusive invoice
-                const isInclusiveLikely = totalAmount > 0 && taxAmount > 0 && (
-                    subtotalAmount === 0 ||
-                    Math.abs(subtotalAmount - (totalAmount - taxAmount)) < 100
-                );
+                // OCR明細の合計
+                const lineItemSum = Array.isArray(ocrData.lineItems)
+                    ? ocrData.lineItems.reduce(
+                        (sum, item) => sum + (Number(item.amountExclTax) || 0),
+                        0
+                    )
+                    : 0;
+
+                // 明細合計が税抜小計と一致するか
+                const lineMatchesSubtotal =
+                    lineItemSum > 0 &&
+                    subtotalAmount > 0 &&
+                    Math.abs(lineItemSum - subtotalAmount) < 100;
+
+                // 明細合計が税込合計と一致するか
+                const lineMatchesGross =
+                    lineItemSum > 0 &&
+                    totalAmount > 0 &&
+                    Math.abs(lineItemSum - totalAmount) < 100;
+
+                // isTaxInclusive は「請求書全体が税込表記か」ではなく、
+                // 「明細金額そのものが税込金額か」を表す。
+                //
+                // 明細合計 ≒ 税抜小計  → false（税抜明細）
+                // 明細合計 ≒ 税込合計  → true （税込明細）
+                const isInclusiveLikely =
+                    lineMatchesGross &&
+                    !lineMatchesSubtotal;
 
                 updateField('isTaxInclusive', isInclusiveLikely);
 
@@ -1049,6 +1072,7 @@ const ExpenseReimbursementForm: React.FC<ExpenseReimbursementFormProps> = (props
 
     const handleStartNewApplication = () => {
         resetFormFields();
+        setPinnedTotalGross(null);
         setHasSubmitted(false);
         setError('');
     };
@@ -1162,40 +1186,42 @@ const ExpenseReimbursementForm: React.FC<ExpenseReimbursementFormProps> = (props
                                     <input id="dueDate" type="date" value={invoice.dueDate} onChange={e => handleFieldChange('dueDate', e.target.value)} className="w-full rounded-md border-slate-300 dark:border-slate-600" disabled={isDisabled} />
                                 </FormField>
                                 <div className="md:col-span-2 lg:col-span-3">
-                                    <FormField label="請求書の税区分" className="md:col-span-2 lg:col-span-3">
-                                        <div className="flex items-center gap-4 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                                    <FormField label="明細金額の税区分" className="md:col-span-2 lg:col-span-3">
+                                        <div className="flex flex-col gap-3 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800 sm:flex-row sm:items-center sm:gap-5">
                                             <div className="flex items-center gap-2">
                                                 <input
                                                     type="radio"
-                                                    id="tax-exclusive"
-                                                    name="tax-type"
+                                                    id="line-tax-exclusive"
+                                                    name="line-tax-type"
                                                     checked={!invoice.isTaxInclusive}
                                                     onChange={() => handleFieldChange('isTaxInclusive', false)}
                                                     disabled={isDisabled}
                                                     className="w-4 h-4 text-blue-600 border-slate-300 focus:ring-blue-500"
                                                 />
-                                                <label htmlFor="tax-exclusive" className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                                                    税抜請求書
+                                                <label htmlFor="line-tax-exclusive" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                                    税抜
                                                 </label>
                                             </div>
+
                                             <div className="flex items-center gap-2">
                                                 <input
                                                     type="radio"
-                                                    id="tax-inclusive"
-                                                    name="tax-type"
+                                                    id="line-tax-inclusive"
+                                                    name="line-tax-type"
                                                     checked={invoice.isTaxInclusive}
                                                     onChange={() => handleFieldChange('isTaxInclusive', true)}
                                                     disabled={isDisabled}
                                                     className="w-4 h-4 text-blue-600 border-slate-300 focus:ring-blue-500"
                                                 />
-                                                <label htmlFor="tax-inclusive" className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                                                    税込請求書
+                                                <label htmlFor="line-tax-inclusive" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                                    税込
                                                 </label>
                                             </div>
-                                            <div className="text-xs text-slate-500 dark:text-slate-400 ml-auto">
-                                                {invoice.isTaxInclusive ?
-                                                    '明細金額を税込として扱い、消費税を除いて計算します' :
-                                                    '明細金額を税抜として扱い、消費税を加算して計算します'
+
+                                            <div className="text-xs text-slate-500 dark:text-slate-400 sm:ml-auto">
+                                                {invoice.isTaxInclusive
+                                                    ? '明細金額を税込として扱い、税抜金額と消費税を逆算します'
+                                                    : '明細金額を税抜として扱い、消費税を加算して計算します'
                                                 }
                                             </div>
                                         </div>

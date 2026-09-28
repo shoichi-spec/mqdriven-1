@@ -359,7 +359,7 @@ export const investigateLeadCompany = async (
   companyName: string
 ): Promise<CompanyInvestigation> => {
   const ai = checkOnlineAndAIOff();
-  const modelWithSearch = "gemini-2.5-flash";
+  const modelWithSearch = "gemini-3.8-flash";
   return withRetry(async () => {
     const prompt = `企業名「${companyName}」について、その事業内容、最近のニュース、市場での評判を調査し、簡潔にまとめてください。`;
     const response = await ai.models.generateContent({
@@ -401,12 +401,12 @@ export const enrichCustomerData = async (
 - 代表電話番号 (phoneNumber)
 - 代表者名 (representative)`;
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-      config: {
-        tools: [{ googleSearch: {} }],
-      },
-    });
+  model: "gemini-3.8-flash",
+  contents: prompt,
+  config: {
+    tools: [{ googleSearch: {} }],
+  },
+});
 
     let jsonStr = response.text.trim();
     if (jsonStr.startsWith("```json")) {
@@ -540,7 +540,7 @@ export const extractInvoiceDetails = async (
 4. 請求先情報: recipientName, recipientPostalCode, recipientAddress, recipientContact を全て抽出。
 5. 日付: invoiceDate(発行日), closingDate(締日), dueDate(支払期限) をYYYY-MM-DD形式で。
 6. 金額: subtotalAmount(税抜), taxAmount(消費税), totalAmount(税込合計), withholdingTax(源泉徴収税), discountOffset(値引き・繰越相殺), netAmount(差引請求額=実支払額)。
-7. taxInclusive: 税込表示ならtrue。
+7. taxInclusive:明細行の金額が税込金額として記載されている場合のみtrue, 明細行が税抜で、小計＋消費税＝税込合計という形式の場合はfalse, 請求総額に「税込」と記載されているだけではtrueにしない。
 8. 振込先: bankAccount(構造化) + bankAccountRaw(原文テキストそのまま)。
 9. 明細行(lineItems): 各行の品名・数量・単価・金額を個別に抽出。
 10. account: 請求内容に最適な勘定科目を提案 (仕入高/広告宣伝費/修繕費/消耗品費/外注加工費/保守費/通信費/支払手数料/旅費交通費 等)。

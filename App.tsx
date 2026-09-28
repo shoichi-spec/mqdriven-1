@@ -246,7 +246,7 @@ import type { Session, User as SupabaseAuthUser } from '@supabase/supabase-js';
 import { PlusCircle, Loader, AlertTriangle, RefreshCw, Settings, Menu } from './components/Icons';
 import { IS_AI_DISABLED as ENV_SHIM_AI_OFF } from './src/envShim';
 import BusinessCardContactsPage from './components/pages/BusinessCardContactsPage';
-
+import CustomerAnalyticsPage from './components/CustomerAnalyticsPage';
 
 
 
@@ -313,9 +313,9 @@ const PAGE_TITLES: Record<Page, string> = {
     analysis_dashboard: '起死回生プラン',
     sales_dashboard: '販売ダッシュボード',
     sales_leads: 'リード管理',
-    sales_customers: '取引先',
+    sales_customers: '顧客一覧',
     business_card_contacts: '名刺OCR・連絡先管理',
-    sales_customers_chart: '顧客/お客様カルテ',
+    sales_customers_chart: '顧客/売上ランキング',
     customer_dashboard: '顧客ダッシュボード',
     sales_pipeline: 'パイプライン',
     sales_estimates: '見積管理',
@@ -408,8 +408,7 @@ const APPLICATION_FORM_PAGE_MAP: Partial<Record<string, Page>> = {
 
 const PRIMARY_ACTION_ENABLED_PAGES: Page[] = [
     'sales_leads',
-    'sales_customers',
-    'sales_customers_chart',
+    //'sales_customers',
     'purchasing_orders',
     'inventory_management',
     'sales_estimates',
@@ -418,7 +417,6 @@ const PRIMARY_ACTION_ENABLED_PAGES: Page[] = [
 
 const SEARCH_ENABLED_PAGES: Page[] = [
     'sales_customers',
-    'sales_customers_chart',
     'sales_leads',
     'sales_estimates',
     'simple_estimates',
@@ -427,7 +425,6 @@ const SEARCH_ENABLED_PAGES: Page[] = [
 
 const PREDICTIVE_SUGGESTION_PAGES: Page[] = [
     'sales_customers',
-    'sales_customers_chart',
 ];
 
 const ESTIMATE_PAGE_SIZE = 50;
@@ -646,7 +643,11 @@ const App: React.FC = () => {
             });
         }
 
-        return [...customerSuggestions, ...jobSuggestions];
+        if (currentPage === 'sales_customers') {
+    return customerSuggestions;
+}
+
+return [...customerSuggestions, ...jobSuggestions];
     }, [currentPage, searchTerm, customers, jobs]);
 
     // Navigation and Modals
@@ -1399,10 +1400,11 @@ const App: React.FC = () => {
             case 'sales_orders': setCreateJobModalOpen(true); break;
             case 'sales_leads': setCreateLeadModalOpen(true); break;
             case 'sales_customers':
-            case 'sales_customers_chart':
                 setSelectedCustomer(null);
                 setCustomerModalMode('new');
-                setCustomerInitialValues(currentPage === 'sales_customers_chart' ? { is_customer_chart: true } : { is_customer_chart: false });
+                setCustomerInitialValues({
+                    is_customer_chart: false
+                });
                 setCustomerDetailModalOpen(true);
                 break;
             case 'purchasing_orders': setCreatePOModalOpen(true); break;
@@ -1439,41 +1441,67 @@ const App: React.FC = () => {
         />
     );
             case 'sales_customers':
-            case 'sales_customers_chart':
-                if (showBulkOCR) {
-                    return <BusinessCardOCR
-                        addToast={addToast}
-                        requestConfirmation={requestConfirmation}
-                        isAIOff={isAIOff}
-                        onCustomerAdded={(customer) => {
-                            loadAllData();
-                        }}
-                    />;
-                }
-                const isChartMode = currentPage === 'sales_customers_chart';
-                const filteredCustomersList = (customers || []).filter(c => isChartMode ? c.is_customer_chart === true : !c.is_customer_chart);
+    if (showBulkOCR) {
+        return (
+            <BusinessCardOCR
+                addToast={addToast}
+                requestConfirmation={requestConfirmation}
+                isAIOff={isAIOff}
+                onCustomerAdded={() => {
+                    loadAllData();
+                }}
+            />
+        );
+    }
 
-                return <CustomerList
-                    customers={filteredCustomersList}
-                    searchTerm={searchTerm}
-                    isChartMode={isChartMode}
-                    onSelectCustomer={(customer) => {
-                        setSelectedCustomer(customer);
-                        handleNavigate('customer_dashboard');
-                    }}
-                    onUpdateCustomer={handleUpdateCustomer}
-                    onAnalyzeCustomer={handleAnalyzeCustomer}
-                    addToast={addToast}
-                    currentUser={currentUser}
-                    onNewCustomer={() => {
-                        setCustomerInitialValues(isChartMode ? { is_customer_chart: true } : { is_customer_chart: false });
-                        setSelectedCustomer(null);
-                        setCustomerModalMode('new');
-                        setCustomerDetailModalOpen(true);
-                    }}
-                    isAIOff={isAIOff}
-                    onShowBulkOCR={() => setShowBulkOCR(true)}
-                />;
+    return (
+        <CustomerList
+            customers={customers || []}
+            searchTerm={searchTerm}
+            isChartMode={false}
+            onSelectCustomer={(customer) => {
+                setSelectedCustomer(customer);
+                handleNavigate('customer_dashboard');
+            }}
+            onUpdateCustomer={handleUpdateCustomer}
+            onAnalyzeCustomer={handleAnalyzeCustomer}
+            addToast={addToast}
+            currentUser={currentUser}
+            onNewCustomer={() => {
+                setCustomerInitialValues({
+                    is_customer_chart: false
+                });
+                setSelectedCustomer(null);
+                setCustomerModalMode('new');
+                setCustomerDetailModalOpen(true);
+            }}
+            isAIOff={isAIOff}
+            onShowBulkOCR={() => setShowBulkOCR(true)}
+        />
+    );
+
+case 'sales_customers_chart':
+    return (
+        <CustomerAnalyticsPage
+            addToast={addToast}
+            onSelectCustomer={(customerId) => {
+                const customer = (customers || []).find(
+                    c => c.id === customerId
+                );
+
+                if (!customer) {
+                    addToast(
+                        '顧客マスタ情報を取得できませんでした。',
+                        'warning'
+                    );
+                    return;
+                }
+
+                setSelectedCustomer(customer);
+                handleNavigate('customer_dashboard');
+            }}
+        />
+    );
             case 'newsletter':
                 return <NewsletterPage customers={customers} addToast={addToast} />;
             case 'email_auto_reply':

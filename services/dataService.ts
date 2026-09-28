@@ -1749,15 +1749,110 @@ const mapCustomerBudgetSummary = (row: any): CustomerBudgetSummary => ({
 
 export const getCustomers = async (): Promise<Customer[]> => {
     const supabase = getSupabase();
-    // Fetch customers ordered by latest created_at.
+
+    const PAGE_SIZE = 1000;
+    const allRows: any[] = [];
+
+    let from = 0;
+
+    while (true) {
+        const to = from + PAGE_SIZE - 1;
+
+        const { data, error } = await supabase
+            .from('customers')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .order('id', { ascending: true })
+            .range(from, to);
+
+        ensureSupabaseSuccess(
+            error,
+            'Failed to fetch customers'
+        );
+
+        const rows = data || [];
+
+        allRows.push(...rows);
+
+        if (rows.length < PAGE_SIZE) {
+            break;
+        }
+
+        from += PAGE_SIZE;
+    }
+
+    const customers =
+        allRows.map(dbCustomerToCustomer);
+
+    console.log(
+        '[dataService] customers fetched',
+        {
+            count: customers.length
+        }
+    );
+
+    return customers;
+};
+
+export const getCustomerById = async (
+    id: string
+): Promise<Customer | null> => {
+    if (!id) return null;
+
+    const supabase = getSupabase();
+
     const { data, error } = await supabase
         .from('customers')
         .select('*')
-        .order('created_at', { ascending: false });
-    ensureSupabaseSuccess(error, 'Failed to fetch customers');
-    const customers = (data || []).map(dbCustomerToCustomer);
-    console.log('[dataService] customers fetched', { count: customers.length });
-    return customers;
+        .eq('id', id)
+        .maybeSingle();
+
+    ensureSupabaseSuccess(
+        error,
+        'Failed to fetch customer'
+    );
+
+    return data
+        ? dbCustomerToCustomer(data)
+        : null;
+};
+
+export interface CustomerSalesSummaryV2 {
+    customer_uuid: string;
+    invoice_count: number;
+    sales_amount: number;
+    variable_cost: number;
+    mq: number;
+    mq_rate: number;
+    last_sales_date: string | null;
+}
+
+export const getCustomerSalesSummaryV2 = async (
+    customerId: string,
+    startDate: string,
+    endDate: string
+): Promise<CustomerSalesSummaryV2 | null> => {
+    const supabase = getSupabase();
+
+    const { data, error } = await supabase.rpc(
+        'get_customer_sales_summary_v2',
+        {
+            p_customer_uuid: customerId,
+            p_start_date: startDate,
+            p_end_date: endDate,
+        }
+    );
+
+    ensureSupabaseSuccess(
+        error,
+        'Failed to fetch customer sales summary'
+    );
+
+    if (!data || data.length === 0) {
+        return null;
+    }
+
+    return data[0] as CustomerSalesSummaryV2;
 };
 
 export const addCustomer = async (customerData: Partial<Customer>): Promise<Customer> => {
@@ -6267,6 +6362,52 @@ export const getCustomerSalesRankings = async (): Promise<any[]> => {
     
     ensureSupabaseSuccess(error, 'Failed to fetch customer sales rankings');
     return data || [];
+};
+
+export interface CustomerSalesRankingV2 {
+    rank: number;
+    customer_uuid: string;
+    customer_code: string | null;
+    customer_name: string | null;
+    invoice_count: number;
+    sales_amount: number;
+    variable_cost: number;
+    mq: number | null;
+    mq_rate: number | null;
+    composition_rate: number;
+    last_sales_date: string | null;
+    mq_available: boolean;
+}
+
+export const getCustomerSalesRankingsV2 = async (
+    startDate: string | null,
+    endDate: string | null,
+    salesUserId: string | null = null
+): Promise<CustomerSalesRankingV2[]> => {
+    const supabase = getSupabase();
+
+    console.log(
+        '[dataService] getCustomerSalesRankingsV2:',
+        startDate,
+        endDate,
+        salesUserId
+    );
+
+    const { data, error } = await supabase.rpc(
+        'get_customer_sales_ranking_v2',
+        {
+            p_start_date: startDate,
+            p_end_date: endDate,
+            p_sales_user_id: salesUserId,
+        }
+    );
+
+    ensureSupabaseSuccess(
+        error,
+        'Failed to fetch customer sales rankings V2'
+    );
+
+    return (data || []) as CustomerSalesRankingV2[];
 };
 
 export const getMachines = async (): Promise<Machine[]> => {
