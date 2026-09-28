@@ -16,6 +16,7 @@ import {
 
 import type { EmployeeUser, Toast } from '../types';
 import { formatJPY } from '../utils';
+import * as XLSX from 'xlsx';
 
 interface CustomerAnalyticsPageProps {
   addToast?: (message: string, type: Toast['type']) => void;
@@ -553,6 +554,91 @@ const CustomerAnalyticsPage: React.FC<
     isMqPeriodAvailable,
   ]);
 
+  const handleExportRankingExcel = () => {
+  if (!rankings || rankings.length === 0) {
+    addToast?.(
+      '出力するランキングデータがありません。',
+      'warning'
+    );
+    return;
+  }
+
+  // 売上金額（PQ）の高い順に並べて上位50件
+  const top50 = [...rankings]
+    .sort(
+      (a, b) =>
+        Number(b.sales_amount || 0) -
+        Number(a.sales_amount || 0)
+    )
+    .slice(0, 50);
+
+  const exportRows = top50.map((row, index) => ({
+    順位: index + 1,
+    顧客コード: row.customer_code ?? '',
+    お客様名: row.customer_name ?? '',
+    請求件数: Number(row.invoice_count || 0),
+    '売上金額（PQ）': Number(row.sales_amount || 0),
+    '変動費（VQ）': Number(row.variable_cost || 0),
+    MQ:
+      row.mq_available === false
+        ? ''
+        : Number(row.mq || 0),
+    'MQ率（%）':
+      row.mq_available === false
+        ? ''
+        : Number(row.mq_rate || 0),
+    '構成比（%）': Number(
+      row.composition_rate || 0
+    ),
+    最終売上日: row.last_sales_date ?? '',
+  }));
+
+  const worksheet =
+    XLSX.utils.json_to_sheet(exportRows);
+
+  // 列幅
+  worksheet['!cols'] = [
+    { wch: 8 },  // 順位
+    { wch: 12 }, // 顧客コード
+    { wch: 38 }, // お客様名
+    { wch: 12 }, // 請求件数
+    { wch: 18 }, // PQ
+    { wch: 18 }, // VQ
+    { wch: 18 }, // MQ
+    { wch: 12 }, // MQ率
+    { wch: 12 }, // 構成比
+    { wch: 14 }, // 最終売上日
+  ];
+
+  const workbook =
+    XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    worksheet,
+    '売上ランキング'
+  );
+
+  const safeStartDate =
+    startDate?.replaceAll('-', '') || '';
+
+  const safeEndDate =
+    endDate?.replaceAll('-', '') || '';
+
+  const fileName =
+    `売上ランキング_TOP50_${safeStartDate}_${safeEndDate}.xlsx`;
+
+  XLSX.writeFile(
+    workbook,
+    fileName
+  );
+
+  addToast?.(
+    `売上ランキング上位${top50.length}件をExcelに出力しました。`,
+    'success'
+  );
+};
+
   /**
    * ページング
    */
@@ -631,18 +717,24 @@ const CustomerAnalyticsPage: React.FC<
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() =>
-              loadRankings()
-            }
-            disabled={isLoading}
-            className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-          >
-            {isLoading
-              ? '読み込み中...'
-              : '再読み込み'}
-          </button>
+          <div className="flex items-center gap-2">
+  <button
+    type="button"
+    onClick={handleExportRankingExcel}
+    disabled={!rankings || rankings.length === 0}
+    className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+  >
+    Excelへ出力
+  </button>
+
+  <button
+    type="button"
+    onClick={loadRankings}
+    className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+  >
+    再読み込み
+  </button>
+</div>
         </div>
       </div>
 
