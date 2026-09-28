@@ -583,7 +583,7 @@ const CustomerAnalyticsPage: React.FC<
       row.mq_available === false
         ? ''
         : Number(row.mq || 0),
-    'MQ率（%）':
+    'M率（%）':
       row.mq_available === false
         ? ''
         : Number(row.mq_rate || 0),
