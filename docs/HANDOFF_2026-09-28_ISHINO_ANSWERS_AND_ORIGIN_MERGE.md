@@ -28,7 +28,9 @@
 6. Vercelプロジェクトは石野さん認識で`mqdriven-pro`。所属・Root Directory・環境変数・デプロイ保護は石野さん側でも未確認（Vercel管理画面で要確認）。
 7. OAuth/Calendarの本番正本経路は石野さん側でも未整理。`verify_jwt`の正本も未統一。
 
-**未回答**：`auth_user_id`16件の由来、`public.profiles`39件の用途（09-17 17:56の追加送信分）。回答が来たら、設計書の12章「未確認事項」表（`public.profiles`欄）を更新する。
+**【2026-09-28訂正】下の2問は「未回答」ではなかった。** 石野さんは2026-09-17 18:06 JSTに回答済み（Gmailスレッド「連絡」）。要点：`auth_user_id`はRLSで`auth.uid()`から社員を特定するため一部ユーザーに設定したもの。正式な対応付けは`auth.users.id`→`public.users.auth_user_id`→`public.users.id`。本番コード変更前に16件の`id/auth_user_id/email/name`対応一覧で誤紐付けがないか確認すること。`public.profiles`は業務で使っている認識なし。削除・変更の前に`handle_new_user()`の定義と、アプリ・RLS・Edge Functionsからの参照が無いかを確認し、未使用なら廃止候補。設計書12章「未確認事項」表（`public.profiles`欄）は未更新。
+
+~~**未回答**：`auth_user_id`16件の由来、`public.profiles`39件の用途（09-17 17:56の追加送信分）。~~
 
 ## 次のアクション（優先順）
 
