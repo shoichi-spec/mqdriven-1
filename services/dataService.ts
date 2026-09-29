@@ -2129,7 +2129,7 @@ const fetchUsersDirectly = async (supabase: SupabaseClient): Promise<EmployeeUse
     try {
         const { data: usersData, error: usersError } = await supabase
             .from('users')
-            .select('id, name, name_kana, email, role, created_at, department_id, position_id, is_active, notification_enabled, is_sales_user')
+            .select('id, name, name_kana, email, role, created_at, department_id, position_id, is_active, notification_enabled, is_sales_user, auth_user_id')
             .order('name', { ascending: true });
 
         if (usersError) {
@@ -2168,6 +2168,7 @@ const fetchUsersDirectly = async (supabase: SupabaseClient): Promise<EmployeeUse
 
         return {
             id: user.id,
+            auth_user_id: user.auth_user_id ?? null,
             name: user.name || '未設定',
             nameKana: user.name_kana ?? null,
             department: departmentName,
