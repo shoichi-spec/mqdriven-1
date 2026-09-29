@@ -287,11 +287,7 @@ const completedReviewCount =
 const canMarkReviewed =
   completedReviewCount >= 4;
 
-  const handleSave = async (
-    event:
-      React.FormEvent<HTMLFormElement>
-  ) => {
-    event.preventDefault();
+  const handleSave = async () => {
 
     if (!customerId) {
       setError(
@@ -524,10 +520,7 @@ const canMarkReviewed =
   }
 
   return (
-    <form
-      onSubmit={handleSave}
-      className="space-y-8"
-    >
+    <div className="space-y-8">
       {/* =====================================================
           Status
       ===================================================== */}
@@ -1726,7 +1719,8 @@ const canMarkReviewed =
       ===================================================== */}
       <div className="sticky bottom-4 flex justify-end">
         <button
-          type="submit"
+          type="button"
+          onClick={handleSave}
           disabled={saving}
           className="rounded-xl bg-blue-600 px-8 py-3 font-bold text-white shadow-lg transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -1735,7 +1729,7 @@ const canMarkReviewed =
             : 'お客様カルテを保存'}
         </button>
       </div>
-    </form>
+    </div>
   );
 };
 
