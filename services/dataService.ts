@@ -619,7 +619,11 @@ const dbCustomerToCustomer = (dbCustomer: any): Customer => ({
     aiAnalysis: dbCustomer.ai_analysis,
     businessEvent: dbCustomer.business_event ?? null,
     receivedByEmployeeCode: dbCustomer.received_by_employee_code ?? null,
-    is_customer_chart: dbCustomer.is_customer_chart ?? false,
+is_customer_chart: dbCustomer.is_customer_chart ?? false,
+
+profileReviewed: dbCustomer.profile_reviewed ?? false,
+profileReviewedAt: dbCustomer.profile_reviewed_at ?? null,
+profileReviewedBy: dbCustomer.profile_reviewed_by ?? null,
 });
 
 const CUSTOMER_FIELD_OVERRIDES: Partial<Record<keyof Customer, string>> = {
