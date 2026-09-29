@@ -1993,19 +1993,25 @@ case 'sales_customers_chart':
             {isJobDetailModalOpen && <JobDetailModal isOpen={isJobDetailModalOpen} job={selectedJob} onClose={() => setJobDetailModalOpen(false)} onUpdateJob={handleUpdateJob} onDeleteJob={handleDeleteJob} requestConfirmation={requestConfirmation} onNavigate={handleNavigate} addToast={addToast} />}
             {isCustomerDetailModalOpen && (
                 <CustomerDetailModal
-                    customer={selectedCustomer}
-                    mode={customerModalMode}
-                    onClose={() => { setCustomerDetailModalOpen(false); setCustomerInitialValues(null); }}
-                    onSave={handleSaveCustomer}
-                    onSetMode={setCustomerModalMode}
-                    onAnalyzeCustomer={handleAnalyzeCustomer}
-                    isAIOff={isAIOff}
-                    initialValues={customerInitialValues}
-                    addToast={addToast}
-                    currentUser={currentUser}
-                    allUsers={allUsers}
-                    onAutoCreateCustomer={handleCreateCustomerInline}
-                />
+  customer={selectedCustomer}
+  mode={customerModalMode}
+  onClose={() => {
+    setCustomerDetailModalOpen(false);
+    setCustomerInitialValues(null);
+  }}
+  onSave={handleSaveCustomer}
+  onSetMode={setCustomerModalMode}
+  onAnalyzeCustomer={handleAnalyzeCustomer}
+  isAIOff={isAIOff}
+  initialValues={customerInitialValues}
+  addToast={addToast}
+  currentUser={currentUser}
+  allUsers={allUsers}
+  onAutoCreateCustomer={handleCreateCustomerInline}
+  onCustomerUpdated={async () => {
+    await loadAllData();
+  }}
+/>
             )}
             {isAnalysisModalOpen && <CompanyAnalysisModal isOpen={isAnalysisModalOpen} onClose={() => setAnalysisModalOpen(false)} analysis={companyAnalysis} customer={selectedCustomer} isLoading={isAnalysisLoading} error={analysisError} currentUser={currentUser} isAIOff={isAIOff} onReanalyze={handleAnalyzeCustomer} />}
             {isBugReportModalOpen && <BugReportChatModal isOpen={isBugReportModalOpen} onClose={() => setIsBugReportModalOpen(false)} onReportSubmit={handleSaveBugReport} isAIOff={isAIOff} />}

@@ -6,6 +6,7 @@ import React, {
 import type {
   Customer,
   CustomerInfo,
+  EmployeeUser,
 } from '../../types';
 
 import {
@@ -17,7 +18,8 @@ import {
 
 interface CustomerInfoFormProps {
   customerId: string | null;
-  onSaved?: () => void;
+  currentUser?: EmployeeUser | null;
+  onSaved?: () => void | Promise<void>;
 }
 
 type FinancialForm = {
@@ -54,6 +56,7 @@ const CustomerInfoForm: React.FC<
   CustomerInfoFormProps
 > = ({
   customerId,
+  currentUser,
   onSaved,
 }) => {
   const [customer, setCustomer] =
@@ -81,6 +84,9 @@ const CustomerInfoForm: React.FC<
 
   const [savedMessage, setSavedMessage] =
     useState<string | null>(null);
+
+  const [hasUnsavedChanges, setHasUnsavedChanges] =
+  useState(false);
 
   useEffect(() => {
     if (!customerId) {
@@ -120,6 +126,8 @@ const CustomerInfoForm: React.FC<
         setInfo(
           infoResult
         );
+
+        setHasUnsavedChanges(false);
 
         setFinancial({
           capital:
@@ -208,6 +216,7 @@ const CustomerInfoForm: React.FC<
       );
 
       setSavedMessage(null);
+      setHasUnsavedChanges(true);
     };
 
   const handleInfoChange =
@@ -223,13 +232,138 @@ const CustomerInfoForm: React.FC<
       );
 
       setSavedMessage(null);
+      setHasUnsavedChanges(true);
     };
 
-  const handleSave = async (
-    event:
-      React.FormEvent<HTMLFormElement>
-  ) => {
-    event.preventDefault();
+  const hasValue = (value: unknown) => {
+  if (value === null || value === undefined) return false;
+
+  if (typeof value === 'string') {
+    return value.trim().length > 0;
+  }
+
+  return true;
+};
+
+const reviewItems = [
+  {
+    id: 'personInCharge',
+    label: '社内担当',
+    completed: hasValue(info?.personInCharge),
+  },
+  {
+    id: 'keyPerson',
+    label: 'キーパーソン',
+    completed: hasValue(info?.keyPerson),
+  },
+  {
+    id: 'customerUnderstanding',
+    label: '顧客理解',
+    completed:
+      hasValue(info?.businessSummary) ||
+      hasValue(info?.companyFeatures),
+  },
+  {
+    id: 'needs',
+    label: 'ニーズ',
+    completed:
+      hasValue(info?.needsAndIssues) ||
+      hasValue(info?.requirements),
+  },
+  {
+    id: 'business',
+    label: '仕事の内容',
+    completed:
+      hasValue(info?.mainProducts) ||
+      hasValue(info?.orderProcess),
+  },
+  {
+    id: 'salesPolicy',
+    label: '営業方針',
+    completed:
+      hasValue(info?.salesTarget) ||
+      hasValue(info?.annualActionPlan),
+  },
+];
+
+const completedReviewCount =
+  reviewItems.filter(
+    (item) => item.completed
+  ).length;
+
+const hasMinimumReviewItems =
+  completedReviewCount >= 4;
+
+const canMarkReviewed =
+  hasMinimumReviewItems &&
+  !hasUnsavedChanges;
+
+  const handleMarkReviewed = async () => {
+  if (!customerId) {
+    setError('顧客IDがありません。');
+    return;
+  }
+
+  if (!currentUser?.id) {
+    setError('ログインユーザー情報を取得できません。');
+    return;
+  }
+
+  if (hasUnsavedChanges) {
+  setError(
+    '入力内容がまだ保存されていません。先に「お客様カルテを保存」を押してください。'
+  );
+  return;
+}
+
+if (!hasMinimumReviewItems) {
+  setError(
+    'カルテ確認には基本情報が4項目以上必要です。'
+  );
+  return;
+}
+
+  setSaving(true);
+  setError(null);
+  setSavedMessage(null);
+
+  try {
+    const reviewedAt = new Date().toISOString();
+
+    const updatedCustomer =
+      await updateCustomer(
+        customerId,
+        {
+          profileReviewed: true,
+          profileReviewedAt: reviewedAt,
+          profileReviewedBy: currentUser.id,
+        }
+      );
+
+    setCustomer(updatedCustomer);
+
+    setSavedMessage(
+      'お客様カルテを確認済みにしました。'
+    );
+
+    await onSaved?.();
+  } catch (e) {
+    console.error(
+      '[CustomerInfoForm] review error:',
+      e
+    );
+
+    setError(
+      e instanceof Error
+        ? e.message
+        : 'カルテ確認済みの登録に失敗しました。'
+    );
+  } finally {
+    setSaving(false);
+  }
+};
+
+  const handleSave = async () => {
 
     if (!customerId) {
       setError(
@@ -424,11 +558,13 @@ const CustomerInfoForm: React.FC<
         updatedInfo
       );
 
-      setSavedMessage(
-        'お客様カルテを保存しました。'
-      );
+      setHasUnsavedChanges(false);
 
-      onSaved?.();
+setSavedMessage(
+  'お客様カルテを保存しました。'
+);
+
+await onSaved?.();
     } catch (e) {
       console.error(
         '[CustomerInfoForm] save error:',
@@ -462,10 +598,7 @@ const CustomerInfoForm: React.FC<
   }
 
   return (
-    <form
-      onSubmit={handleSave}
-      className="space-y-8"
-    >
+    <div className="space-y-8">
       {/* =====================================================
           Status
       ===================================================== */}
@@ -531,6 +664,103 @@ const CustomerInfoForm: React.FC<
           </div>
         </div>
       </div>
+
+      {/* =====================================================
+    Karte Review Status
+===================================================== */}
+<section className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <div>
+      <h3 className="text-lg font-bold text-slate-900">
+        カルテ基本情報
+      </h3>
+
+      <p className="mt-1 text-sm text-slate-500">
+        営業に必要な基本項目の入力状況です。
+      </p>
+    </div>
+
+    <div className="text-lg font-bold text-slate-900">
+      {completedReviewCount} / 6
+    </div>
+  </div>
+
+  <div className="mt-5 grid grid-cols-1 gap-2 md:grid-cols-2">
+    {reviewItems.map((item) => (
+      <div
+        key={item.id}
+        className="flex items-center gap-2 text-sm"
+      >
+        <span
+          className={
+            item.completed
+              ? 'font-bold text-emerald-600'
+              : 'font-bold text-slate-400'
+          }
+        >
+          {item.completed ? '✓' : '－'}
+        </span>
+
+        <span
+          className={
+            item.completed
+              ? 'text-slate-900'
+              : 'text-slate-500'
+          }
+        >
+          {item.label}
+        </span>
+      </div>
+    ))}
+  </div>
+
+  <div className="mt-5 flex flex-col gap-3 border-t border-slate-200 pt-4 md:flex-row md:items-center md:justify-between">
+  <div className="text-sm">
+    {customer?.profileReviewed ? (
+      <div>
+        <span className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 font-semibold text-emerald-700">
+          ✓ カルテ確認済み
+        </span>
+
+        {customer.profileReviewedAt && (
+          <div className="mt-2 text-xs text-slate-500">
+            確認日時：
+            {new Date(
+              customer.profileReviewedAt
+            ).toLocaleString('ja-JP')}
+          </div>
+        )}
+      </div>
+    ) : hasUnsavedChanges && hasMinimumReviewItems ? (
+  <span className="font-medium text-amber-700">
+    入力内容が未保存です。先に「お客様カルテを保存」を押してください。
+  </span>
+) : canMarkReviewed ? (
+  <span className="font-medium text-emerald-700">
+    基本情報が揃いました。カルテ確認可能です。
+  </span>
+) : (
+  <span className="text-amber-700">
+    あと {Math.max(0, 4 - completedReviewCount)} 項目入力すると確認可能になります。
+  </span>
+)}
+  </div>
+
+  {!customer?.profileReviewed &&
+    canMarkReviewed && (
+      <button
+        type="button"
+        onClick={handleMarkReviewed}
+        disabled={saving || !currentUser?.id}
+        className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {saving
+          ? '処理中...'
+          : 'カルテ確認済みにする'}
+      </button>
+    )}
+</div>
+</section>
 
       {/* =====================================================
           Financial / Terms
@@ -1602,7 +1832,8 @@ const CustomerInfoForm: React.FC<
       ===================================================== */}
       <div className="sticky bottom-4 flex justify-end">
         <button
-          type="submit"
+          type="button"
+          onClick={handleSave}
           disabled={saving}
           className="rounded-xl bg-blue-600 px-8 py-3 font-bold text-white shadow-lg transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -1611,7 +1842,7 @@ const CustomerInfoForm: React.FC<
             : 'お客様カルテを保存'}
         </button>
       </div>
-    </form>
+    </div>
   );
 };
 

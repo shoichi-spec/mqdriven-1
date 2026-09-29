@@ -190,6 +190,9 @@ export interface Customer extends LooseRecord {
   ai_analysis?: string;
   rank_id?: string; // Linked to CustomerRank
   is_customer_chart?: boolean;
+  profileReviewed?: boolean;
+  profileReviewedAt?: string | null;
+  profileReviewedBy?: string | null;
 }
 
 export interface CustomerContact {

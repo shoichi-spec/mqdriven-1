@@ -484,12 +484,44 @@ const CustomerList: React.FC<CustomerListProps> = ({ customers, searchTerm, onSe
           </thead>
           <tbody>
             {paginatedCustomers.map((customer) => {
-              const isEditing = editingRowId === customer.id;
-              return (
-                <tr key={customer.id} onClick={() => onSelectCustomer(customer)} className="group border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 cursor-pointer">
+  const isEditing = editingRowId === customer.id;
+  const isReviewed = customer.profileReviewed === true;
+
+  return (
+    <tr
+      key={customer.id}
+      onClick={() => onSelectCustomer(customer)}
+      className={`group border-b dark:border-slate-700 cursor-pointer transition-colors ${
+        isReviewed
+          ? 'hover:bg-slate-50 dark:hover:bg-slate-600'
+          : 'bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/20 dark:hover:bg-amber-950/30'
+      }`}
+    >
                   <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">
-                    {isEditing ? <InlineEditInput name="customerName" value={editedData.customerName} onChange={handleFieldChange} /> : customer.customer_name || customer.customerName}
-                  </td>
+  {isEditing ? (
+    <InlineEditInput
+      name="customerName"
+      value={editedData.customerName}
+      onChange={handleFieldChange}
+    />
+  ) : (
+    <div className="flex items-center gap-2">
+      <span>
+        {customer.customer_name || customer.customerName}
+      </span>
+
+      {isReviewed ? (
+        <span className="inline-flex shrink-0 items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+          確認済
+        </span>
+      ) : (
+        <span className="inline-flex shrink-0 items-center rounded-full bg-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-800">
+          要確認
+        </span>
+      )}
+    </div>
+  )}
+</td>
                   <td className="px-6 py-4">
                     {isEditing ? <InlineEditInput name="phoneNumber" value={editedData.phoneNumber} onChange={handleFieldChange} /> : customer.phone_number || customer.phoneNumber || '-'}
                   </td>
