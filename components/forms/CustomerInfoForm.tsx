@@ -6,6 +6,7 @@ import React, {
 import type {
   Customer,
   CustomerInfo,
+  EmployeeUser,
 } from '../../types';
 
 import {
@@ -17,7 +18,8 @@ import {
 
 interface CustomerInfoFormProps {
   customerId: string | null;
-  onSaved?: () => void;
+  currentUser?: EmployeeUser | null;
+  onSaved?: () => void | Promise<void>;
 }
 
 type FinancialForm = {
@@ -54,6 +56,7 @@ const CustomerInfoForm: React.FC<
   CustomerInfoFormProps
 > = ({
   customerId,
+  currentUser,
   onSaved,
 }) => {
   const [customer, setCustomer] =
@@ -224,6 +227,65 @@ const CustomerInfoForm: React.FC<
 
       setSavedMessage(null);
     };
+
+  const hasValue = (value: unknown) => {
+  if (value === null || value === undefined) return false;
+
+  if (typeof value === 'string') {
+    return value.trim().length > 0;
+  }
+
+  return true;
+};
+
+const reviewItems = [
+  {
+    id: 'personInCharge',
+    label: '社内担当',
+    completed: hasValue(info?.personInCharge),
+  },
+  {
+    id: 'keyPerson',
+    label: 'キーパーソン',
+    completed: hasValue(info?.keyPerson),
+  },
+  {
+    id: 'customerUnderstanding',
+    label: '顧客理解',
+    completed:
+      hasValue(info?.businessSummary) ||
+      hasValue(info?.companyFeatures),
+  },
+  {
+    id: 'needs',
+    label: 'ニーズ',
+    completed:
+      hasValue(info?.needsAndIssues) ||
+      hasValue(info?.requirements),
+  },
+  {
+    id: 'business',
+    label: '仕事の内容',
+    completed:
+      hasValue(info?.mainProducts) ||
+      hasValue(info?.orderProcess),
+  },
+  {
+    id: 'salesPolicy',
+    label: '営業方針',
+    completed:
+      hasValue(info?.salesTarget) ||
+      hasValue(info?.annualActionPlan),
+  },
+];
+
+const completedReviewCount =
+  reviewItems.filter(
+    (item) => item.completed
+  ).length;
+
+const canMarkReviewed =
+  completedReviewCount >= 4;
 
   const handleSave = async (
     event:
@@ -531,6 +593,68 @@ const CustomerInfoForm: React.FC<
           </div>
         </div>
       </div>
+
+      {/* =====================================================
+    Karte Review Status
+===================================================== */}
+<section className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <div>
+      <h3 className="text-lg font-bold text-slate-900">
+        カルテ基本情報
+      </h3>
+
+      <p className="mt-1 text-sm text-slate-500">
+        営業に必要な基本項目の入力状況です。
+      </p>
+    </div>
+
+    <div className="text-lg font-bold text-slate-900">
+      {completedReviewCount} / 6
+    </div>
+  </div>
+
+  <div className="mt-5 grid grid-cols-1 gap-2 md:grid-cols-2">
+    {reviewItems.map((item) => (
+      <div
+        key={item.id}
+        className="flex items-center gap-2 text-sm"
+      >
+        <span
+          className={
+            item.completed
+              ? 'font-bold text-emerald-600'
+              : 'font-bold text-slate-400'
+          }
+        >
+          {item.completed ? '✓' : '－'}
+        </span>
+
+        <span
+          className={
+            item.completed
+              ? 'text-slate-900'
+              : 'text-slate-500'
+          }
+        >
+          {item.label}
+        </span>
+      </div>
+    ))}
+  </div>
+
+  <div className="mt-4 text-sm">
+    {canMarkReviewed ? (
+      <span className="font-medium text-emerald-700">
+        カルテ確認可能です。
+      </span>
+    ) : (
+      <span className="text-amber-700">
+        あと {4 - completedReviewCount} 項目入力すると確認可能になります。
+      </span>
+    )}
+  </div>
+</section>
 
       {/* =====================================================
           Financial / Terms
