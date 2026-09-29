@@ -1063,23 +1063,39 @@ return [...customerSuggestions, ...jobSuggestions];
             }
 
             const usersData = await dataService.getUsers();
-            if (signal.aborted) return;
-            setAllUsers(usersData);
+if (signal.aborted) return;
 
-            let effectiveUser: EmployeeUser | null = currentUser ?? null;
-            if (!effectiveUser && supabaseUser) {
-                effectiveUser = usersData.find(user => user.id === supabaseUser.id) ?? null;
-                if (!effectiveUser && supabaseUser.email) {
-                    const normalizedEmail = supabaseUser.email.toLowerCase();
-                    effectiveUser = usersData.find(user => user.email?.toLowerCase() === normalizedEmail) ?? null;
-                }
-            }
-            if (!effectiveUser && usersData.length > 0) {
-                effectiveUser = usersData[0];
-            }
-            if (effectiveUser && (!currentUser || currentUser.id !== effectiveUser.id)) {
-                setCurrentUser(effectiveUser as EmployeeUser);
-            }
+let effectiveUser: EmployeeUser | null = currentUser ?? null;
+
+if (supabaseUser) {
+    effectiveUser =
+        usersData.find(
+            user => user.auth_user_id === supabaseUser.id
+        ) ?? null;
+}
+
+if (shouldRequireAuth && supabaseUser && !effectiveUser) {
+    setAllUsers([]);
+    setCurrentUser(null);
+
+    throw new Error(
+        'ログインユーザーに対応する社員情報が見つかりません。管理者に連絡してください。'
+    );
+}
+
+if (!shouldRequireAuth && !effectiveUser && usersData.length > 0) {
+    // 認証バイパスはローカル／自動テスト用のみ
+    effectiveUser = usersData[0];
+}
+
+setAllUsers(usersData);
+
+if (
+    effectiveUser &&
+    (!currentUser || currentUser.id !== effectiveUser.id)
+) {
+    setCurrentUser(effectiveUser);
+}
 
             const employeesFromUsers: Employee[] = usersData.map(user => ({
                 id: user.id,
