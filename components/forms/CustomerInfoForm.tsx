@@ -287,6 +287,62 @@ const completedReviewCount =
 const canMarkReviewed =
   completedReviewCount >= 4;
 
+  const handleMarkReviewed = async () => {
+  if (!customerId) {
+    setError('顧客IDがありません。');
+    return;
+  }
+
+  if (!currentUser?.id) {
+    setError('ログインユーザー情報を取得できません。');
+    return;
+  }
+
+  if (!canMarkReviewed) {
+    setError('カルテ確認には基本情報が4項目以上必要です。');
+    return;
+  }
+
+  setSaving(true);
+  setError(null);
+  setSavedMessage(null);
+
+  try {
+    const reviewedAt = new Date().toISOString();
+
+    const updatedCustomer =
+      await updateCustomer(
+        customerId,
+        {
+          profileReviewed: true,
+          profileReviewedAt: reviewedAt,
+          profileReviewedBy: currentUser.id,
+        }
+      );
+
+    setCustomer(updatedCustomer);
+
+    setSavedMessage(
+      'お客様カルテを確認済みにしました。'
+    );
+
+    await onSaved?.();
+  } catch (e) {
+    console.error(
+      '[CustomerInfoForm] review error:',
+      e
+    );
+
+    setError(
+      e instanceof Error
+        ? e.message
+        : 'カルテ確認済みの登録に失敗しました。'
+    );
+  } finally {
+    setSaving(false);
+  }
+};
+
   const handleSave = async () => {
 
     if (!customerId) {
@@ -636,10 +692,26 @@ const canMarkReviewed =
     ))}
   </div>
 
-  <div className="mt-4 text-sm">
-    {canMarkReviewed ? (
+  <div className="mt-5 flex flex-col gap-3 border-t border-slate-200 pt-4 md:flex-row md:items-center md:justify-between">
+  <div className="text-sm">
+    {customer?.profileReviewed ? (
+      <div>
+        <span className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 font-semibold text-emerald-700">
+          ✓ カルテ確認済み
+        </span>
+
+        {customer.profileReviewedAt && (
+          <div className="mt-2 text-xs text-slate-500">
+            確認日時：
+            {new Date(
+              customer.profileReviewedAt
+            ).toLocaleString('ja-JP')}
+          </div>
+        )}
+      </div>
+    ) : canMarkReviewed ? (
       <span className="font-medium text-emerald-700">
-        カルテ確認可能です。
+        基本情報が揃いました。カルテ確認可能です。
       </span>
     ) : (
       <span className="text-amber-700">
@@ -647,6 +719,21 @@ const canMarkReviewed =
       </span>
     )}
   </div>
+
+  {!customer?.profileReviewed &&
+    canMarkReviewed && (
+      <button
+        type="button"
+        onClick={handleMarkReviewed}
+        disabled={saving || !currentUser?.id}
+        className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {saving
+          ? '処理中...'
+          : 'カルテ確認済みにする'}
+      </button>
+    )}
+</div>
 </section>
 
       {/* =====================================================
