@@ -46,6 +46,8 @@ interface CustomerDetailModalProps {
     currentUser?: EmployeeUser | null;
     onAutoCreateCustomer?: (data: Partial<Customer>) => Promise<Customer>;
     allUsers?: EmployeeUser[];
+
+    onCustomerUpdated?: () => void | Promise<void>;
 }
 
 const TABS = [
@@ -56,7 +58,21 @@ const TABS = [
     { id: 'karte', label: 'お客様カルテ' },
 ];
 
-const CustomerDetailModal: React.FC<CustomerDetailModalProps> = ({ customer, mode, onClose, onSave, onSetMode, onAnalyzeCustomer, isAIOff, initialValues, addToast, currentUser, onAutoCreateCustomer, allUsers = [] }) => {
+const CustomerDetailModal: React.FC<CustomerDetailModalProps> = ({
+    customer,
+    mode,
+    onClose,
+    onSave,
+    onSetMode,
+    onAnalyzeCustomer,
+    isAIOff,
+    initialValues,
+    addToast,
+    currentUser,
+    onAutoCreateCustomer,
+    allUsers = [],
+    onCustomerUpdated,
+}) => {
     const [formData, setFormData] = useState<Partial<Customer>>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
@@ -371,7 +387,7 @@ const CustomerDetailModal: React.FC<CustomerDetailModalProps> = ({ customer, mod
                     <CustomerInfoForm
                       customerId={customer?.id ?? null}
                       currentUser={currentUser}
-                      onSaved={onClose}
+                      onSaved={onCustomerUpdated}
                     />
                 );
             default: return null;
