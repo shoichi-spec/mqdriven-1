@@ -127,6 +127,8 @@ const CustomerInfoForm: React.FC<
           infoResult
         );
 
+        setHasUnsavedChanges(false);
+
         setFinancial({
           capital:
             customerResult
