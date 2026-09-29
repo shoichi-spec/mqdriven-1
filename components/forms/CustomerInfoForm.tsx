@@ -1,4 +1,4 @@
-import React, {
+﻿import React, {
   useEffect,
   useState,
 } from 'react';
@@ -86,7 +86,11 @@ const CustomerInfoForm: React.FC<
     useState<string | null>(null);
 
   const [hasUnsavedChanges, setHasUnsavedChanges] =
-  useState(false);
+    useState(false);
+
+  // 読み込みに失敗した状態で保存すると、空のフォーム内容で既存データを上書きしてしまうため保存を止める
+  const [loadFailed, setLoadFailed] =
+    useState(false);
 
   useEffect(() => {
     if (!customerId) {
@@ -102,6 +106,7 @@ const CustomerInfoForm: React.FC<
       setLoading(true);
       setError(null);
       setSavedMessage(null);
+      setLoadFailed(false);
 
       try {
         const [
@@ -183,6 +188,10 @@ const CustomerInfoForm: React.FC<
           '[CustomerInfoForm] load error:',
           e
         );
+
+        if (cancelled) return;
+
+        setLoadFailed(true);
 
         setError(
           e instanceof Error
@@ -368,6 +377,13 @@ if (!hasMinimumReviewItems) {
     if (!customerId) {
       setError(
         '顧客IDがありません。'
+      );
+      return;
+    }
+
+    if (loadFailed) {
+      setError(
+        '顧客カルテを読み込めなかったため保存できません。画面を再読み込みしてください。'
       );
       return;
     }
@@ -1834,7 +1850,7 @@ await onSaved?.();
         <button
           type="button"
           onClick={handleSave}
-          disabled={saving}
+          disabled={saving || loadFailed}
           className="rounded-xl bg-blue-600 px-8 py-3 font-bold text-white shadow-lg transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {saving
