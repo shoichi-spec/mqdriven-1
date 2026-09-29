@@ -85,6 +85,9 @@ const CustomerInfoForm: React.FC<
   const [savedMessage, setSavedMessage] =
     useState<string | null>(null);
 
+  const [hasUnsavedChanges, setHasUnsavedChanges] =
+  useState(false);
+
   useEffect(() => {
     if (!customerId) {
       setCustomer(null);
@@ -211,6 +214,7 @@ const CustomerInfoForm: React.FC<
       );
 
       setSavedMessage(null);
+      setHasUnsavedChanges(true);
     };
 
   const handleInfoChange =
@@ -226,6 +230,7 @@ const CustomerInfoForm: React.FC<
       );
 
       setSavedMessage(null);
+      setHasUnsavedChanges(true);
     };
 
   const hasValue = (value: unknown) => {
@@ -284,8 +289,12 @@ const completedReviewCount =
     (item) => item.completed
   ).length;
 
-const canMarkReviewed =
+const hasMinimumReviewItems =
   completedReviewCount >= 4;
+
+const canMarkReviewed =
+  hasMinimumReviewItems &&
+  !hasUnsavedChanges;
 
   const handleMarkReviewed = async () => {
   if (!customerId) {
@@ -298,10 +307,19 @@ const canMarkReviewed =
     return;
   }
 
-  if (!canMarkReviewed) {
-    setError('カルテ確認には基本情報が4項目以上必要です。');
-    return;
-  }
+  if (hasUnsavedChanges) {
+  setError(
+    '入力内容がまだ保存されていません。先に「お客様カルテを保存」を押してください。'
+  );
+  return;
+}
+
+if (!hasMinimumReviewItems) {
+  setError(
+    'カルテ確認には基本情報が4項目以上必要です。'
+  );
+  return;
+}
 
   setSaving(true);
   setError(null);
@@ -538,11 +556,13 @@ const canMarkReviewed =
         updatedInfo
       );
 
-      setSavedMessage(
-        'お客様カルテを保存しました。'
-      );
+      setHasUnsavedChanges(false);
 
-      onSaved?.();
+setSavedMessage(
+  'お客様カルテを保存しました。'
+);
+
+await onSaved?.();
     } catch (e) {
       console.error(
         '[CustomerInfoForm] save error:',
@@ -709,15 +729,19 @@ const canMarkReviewed =
           </div>
         )}
       </div>
-    ) : canMarkReviewed ? (
-      <span className="font-medium text-emerald-700">
-        基本情報が揃いました。カルテ確認可能です。
-      </span>
-    ) : (
-      <span className="text-amber-700">
-        あと {4 - completedReviewCount} 項目入力すると確認可能になります。
-      </span>
-    )}
+    ) : hasUnsavedChanges && hasMinimumReviewItems ? (
+  <span className="font-medium text-amber-700">
+    入力内容が未保存です。先に「お客様カルテを保存」を押してください。
+  </span>
+) : canMarkReviewed ? (
+  <span className="font-medium text-emerald-700">
+    基本情報が揃いました。カルテ確認可能です。
+  </span>
+) : (
+  <span className="text-amber-700">
+    あと {Math.max(0, 4 - completedReviewCount)} 項目入力すると確認可能になります。
+  </span>
+)}
   </div>
 
   {!customer?.profileReviewed &&
