@@ -147,12 +147,12 @@ const CustomerInfoForm: React.FC<
               : '',
 
           creditLimit:
-            customerResult
-              ?.creditLimit != null
-              ? String(
-                  customerResult.creditLimit
-                )
-              : '',
+  infoResult
+    ?.creditLimit != null
+    ? String(
+        infoResult.creditLimit
+      )
+    : '',
 
           closingDay:
             customerResult
@@ -384,34 +384,30 @@ if (!hasMinimumReviewItems) {
        * --------------------------------------------------
        */
       const updatedCustomer =
-        await updateCustomer(
-          customerId,
-          {
-            capital:
-              financial.capital ||
-              null,
+  await updateCustomer(
+    customerId,
+    {
+      capital:
+        financial.capital ||
+        null,
 
-            annualSales:
-              financial.annualSales ||
-              null,
+      annualSales:
+        financial.annualSales ||
+        null,
 
-            creditLimit:
-              financial.creditLimit ||
-              null,
+      closingDay:
+        financial.closingDay ||
+        null,
 
-            closingDay:
-              financial.closingDay ||
-              null,
+      payDay:
+        financial.payDay ||
+        null,
 
-            payDay:
-              financial.payDay ||
-              null,
-
-            recoveryMethod:
-              financial.recoveryMethod ||
-              null,
-          }
-        );
+      recoveryMethod:
+        financial.recoveryMethod ||
+        null,
+    }
+  );
 
       /**
        * --------------------------------------------------
@@ -423,6 +419,10 @@ if (!hasMinimumReviewItems) {
        */
       const infoPayload: Partial<CustomerInfo> =
         {
+          creditLimit:
+            financial.creditLimit ||
+            null,
+          
           keyPerson:
             info?.keyPerson ||
             null,
